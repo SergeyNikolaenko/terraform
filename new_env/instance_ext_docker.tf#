@@ -1,0 +1,110 @@
+#### Var ####
+
+variable "instance_type_ext" {
+  default = "t3.small"
+}
+
+
+#### Resource ####
+
+data "template_file" "user_data_ext" {
+  template = file(var.user_data_install_jenkins_docker)
+}
+
+resource "aws_eip" "eip_instance_ext" {
+  vpc = true
+
+  instance                  = aws_instance.instance_ext[0].id
+  associate_with_private_ip = aws_instance.instance_ext[0].private_ip
+  
+  depends_on                = [aws_instance.instance_ext[0]]
+
+  tags = {
+      Name     = "${var.env}_eip_instance_ext"
+      Owner    = var.owner
+      Env      = var.env
+      Project  = var.project
+      Resource = "eip"
+    }
+}
+
+resource "aws_instance" "instance_ext" {
+  count                       = "1"
+  ami                         = "ami-0a49b025fffbbdac6"
+  instance_type               = var.instance_type_ext
+  subnet_id                   = aws_subnet.ext_subnet_a.id
+  associate_public_ip_address = "true"
+  availability_zone           = "${var.region}a"
+  vpc_security_group_ids      = [aws_security_group.instance_ext_sg.id]
+  user_data_base64            = base64encode(data.template_file.user_data_ext.rendered)
+  key_name                    = var.key_pair_ext
+
+
+  root_block_device {
+    delete_on_termination = "true"
+    encrypted             = "false"
+    volume_size           = "30"
+    volume_type           = "gp2"
+
+    tags = {
+      Name     = "${var.env}_instances_ext_block_device"
+      Owner    = var.owner
+      Env      = var.env
+      Project  = var.project
+      Resource = "block_device"
+    }
+  }
+
+  tags = {
+    Name     = "${var.env}_instance_ext"
+    Owner    = var.owner
+    Env      = var.env
+    Project  = var.project
+    Resource = "instance"
+  }
+
+  depends_on = [aws_security_group.instance_ext_sg]
+}
+
+resource "aws_security_group" "instance_ext_sg" {
+  name   = "instance_ext_sg"
+  vpc_id = aws_vpc.vpc.id
+
+  egress {
+    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = "0"
+    protocol    = "-1"
+    self        = "false"
+    to_port     = "0"
+  }
+
+  ingress {
+    cidr_blocks = ["134.249.100.91/32"]
+    from_port   = "22"
+    to_port     = "22"
+    protocol    = "tcp"
+  }
+
+  ingress {
+    cidr_blocks = ["134.249.100.91/32"]
+    from_port   = "80"
+    protocol    = "tcp"
+    self        = "false"
+    to_port     = "80"
+  }
+
+  ingress {
+    cidr_blocks = ["134.249.100.91/32"]
+    from_port   = "8080"
+    to_port     = "8080"
+    protocol    = "tcp"
+  }
+
+  tags = {
+    Name     = "${var.env}_instance_ext_sg"
+    Owner    = var.owner
+    Env      = var.env
+    Project  = var.project
+    Resource = "security_group"
+  }
+}

@@ -1,0 +1,83 @@
+data "template_file" "user_data_jenkins" {
+  template = file(var.user_data_jenkins)
+}
+
+resource "aws_instance" "jenkins" {
+  ami                         = var.ami_ubuntu
+  instance_type               = var.instance_type_jenkins
+  subnet_id                   = aws_subnet.ext_subnet_a.id
+  associate_public_ip_address = "true"
+  availability_zone           = "${var.region}a"
+  vpc_security_group_ids      = [aws_security_group.ext_jenkins_sg.id]
+  user_data_base64            = base64encode(data.template_file.user_data_jenkins.rendered)
+  key_name                    = aws_key_pair.key_pair_ext.key_name
+
+
+  root_block_device {
+    delete_on_termination = "true"
+    encrypted             = "false"
+    volume_size           = "30"
+    volume_type           = "gp2"
+
+    tags = {
+      Name     = "${var.env}_jenkins_block_device"
+      Owner    = var.owner
+      Env      = var.env
+      Project  = var.project
+      Resource = "block_device"
+    }
+  }
+
+  tags = {
+    Name     = "${var.env}_jenkins"
+    Owner    = var.owner
+    Env      = var.env
+    Project  = var.project
+    Resource = "instance"
+  }
+
+  depends_on = [aws_security_group.ext_jenkins_sg]
+}
+
+resource "aws_security_group" "ext_jenkins_sg" {
+  name   = "${var.env}_ext_jenkins_sg"
+  vpc_id = aws_vpc.vpc.id
+
+  egress {
+    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = "0"
+    protocol    = "-1"
+    self        = "false"
+    to_port     = "0"
+  }
+
+  ingress {
+    cidr_blocks = ["134.249.100.91/32"]
+    from_port   = "22"
+    to_port     = "22"
+    protocol    = "tcp"
+  }
+
+  ingress {
+    cidr_blocks = ["134.249.100.91/32"]
+    from_port   = "80"
+    protocol    = "tcp"
+    self        = "false"
+    to_port     = "80"
+  }
+
+  ingress {
+    cidr_blocks = ["134.249.100.91/32"]
+    from_port   = "8080"
+    to_port     = "8080"
+    protocol    = "tcp"
+  }
+
+  tags = {
+    Name     = "${var.env}_ext_jenkins_sg"
+    Owner    = var.owner
+    Env      = var.env
+    Project  = var.project
+    Resource = "security_group"
+  }
+}
