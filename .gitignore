@@ -1,5 +1,5 @@
 # Local .terraform directories
-**/file/*
+**/file/ssh*
 **/.terraform/*
 **/.__pycache__/*
 **/.terraform.lock.hcl
